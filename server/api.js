@@ -11,15 +11,38 @@ app.use(express.json())
 
 app.get("/", (req,res)=>{
     res.send(`
-        <html>
-        <head>
-            <title>GTS WEB3</title>
-        </head>
-        <body style="background:#111;color:white;text-align:center;font-family:sans-serif;">
-            <h1>🌍 GTS WEB3 GAME</h1>
-            <p>Server Online ✅</p>
-        </body>
-        </html>
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>GTS WEB3</title>
+        <style>
+            body {
+                background:#0f0f0f;
+                color:white;
+                font-family:sans-serif;
+                text-align:center;
+                padding-top:80px;
+            }
+            .btn {
+                padding:15px 25px;
+                background:#00ff88;
+                border:none;
+                border-radius:10px;
+                color:black;
+                font-weight:bold;
+                cursor:pointer;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>🌍 GTS WEB3 GAME</h1>
+        <p>Server Online ✅</p>
+
+        <button class="btn" onclick="alert('Game loading...')">
+            🎮 Play
+        </button>
+    </body>
+    </html>
     `)
 })
 
