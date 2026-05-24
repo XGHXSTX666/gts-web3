@@ -1,0 +1,330 @@
+nano db/db.js
+const fs = require("fs")
+
+const file = "./db.json"
+
+function load(){
+    if(!fs.existsSync(file)){
+        fs.writeFileSync(file, JSON.stringify({users:{}},null,2))
+    }
+    return JSON.parse(fs.readFileSync(file))
+}
+
+function save(data){
+    fs.writeFileSync(file, JSON.stringify(data,null,2))
+}
+
+function getUser(id){
+    const db = load()
+
+    if(!db.users[id]){
+        db.users[id] = {
+            balance:0,
+            xp:0,
+            level:1,
+            vip:false,
+            wallet:null,
+            inventory:[]
+        }
+        save(db)
+    }
+
+    return db.users[id]
+}
+
+function updateUser(id,data){
+    const db = load()
+
+    db.users[id] = {
+        ...db.users[id],
+        ...data
+    }
+
+    save(db)
+}
+
+function getDB(){
+    return load()
+}
+
+module.exports = { getUser, updateUser, getDB }
+nano security/guard.js
+const limits = {}
+
+function rateLimit(id, ms = 1000){
+    const now = Date.now()
+
+    if(!limits[id]) limits[id] = 0
+
+    if(now - limits[id] < ms){
+        return false
+    }
+
+    limits[id] = now
+    return true
+}
+
+function validateAmount(amount){
+    if(amount < 0 || amount > 1000) return false
+    return true
+}
+
+module.exports = { rateLimit, validateAmount }
+nano server/api.js
+require("dotenv").config()
+const express = require("express")
+const { getUser, updateUser, getDB } = require("../db/db")
+const { rateLimit } = require("../security/guard")
+
+const app = express()
+app.use(express.json())
+
+// 👤 USER
+app.post("/user",(req,res)=>{
+    const {id} = req.body
+    res.json(getUser(id))
+})
+
+app.post("/mine",(req,res)=>{
+    const {id} = req.body
+
+    if(!rateLimit(id)){
+        return res.json({error:"SLOW"})
+    }
+
+    const user = getUser(id)
+
+    let xpGain = user.vip ? 2 : 1
+
+    let xp = user.xp + xpGain
+    let level = user.level
+
+    let reward = 1
+
+    if(xp >= level * 10){
+        level++
+        reward += 2
+    }
+
+    updateUser(id,{
+        balance: user.balance + reward,
+        xp,
+        level
+    })
+
+    res.json({ok:true, reward, level})
+})
+
+
+// 🏪 STORE (in-game shop)
+app.post("/buy",(req,res)=>{
+    const {id,item,price} = req.body
+
+    const user = getUser(id)
+
+    if(user.balance < price){
+        return res.json({error:"NO_MONEY"})
+    }
+
+    user.balance -= price
+    user.inventory.push(item)
+
+    updateUser(id,user)
+
+    res.json({ok:true})
+})
+
+// 🔗 CLAIM (WEB3 HOOK)
+app.post("/claim",(req,res)=>{
+    const {id,wallet} = req.body
+
+    const user = getUser(id)
+
+    if(user.balance < 100){
+        return res.json({error:"NOT_ENOUGH"})
+    }
+
+    updateUser(id,{
+        balance:0,
+        wallet
+    })
+
+    console.log("WEB3 SEND TO:", wallet, user.balance)
+
+    res.json({ok:true})
+})
+
+// 🏆 LEADERBOARD FAST
+app.get("/leaderboard",(req,res)=>{
+    const db = getDB()
+
+    const top = Object.values(db.users)
+        .sort((a,b)=>b.balance - a.balance)
+        .slice(0,10)
+
+    res.json(top)
+})
+
+app.listen(process.env.PORT,()=>{
+    console.log("🔥 GTS PRO API RUNNING")
+})
+
+const daily = {}
+
+app.post("/daily",(req,res)=>{
+    const {id} = req.body
+
+    const now = Date.now()
+
+    if(daily[id] && now - daily[id] < 86400000){
+        return res.json({error:"WAIT"})
+    }
+
+    daily[id] = now
+
+    const user = getUser(id)
+
+    updateUser(id,{
+        balance: user.balance + 10,
+        xp: user.xp + 5
+    })
+
+    res.json({ok:true})
+})
+
+nano bot/bot.js
+bot.command("level", async (ctx)=>{
+    const id = ctx.from.id
+
+    const res = await axios.post("http://localhost:3000/user",{id})
+    const u = res.data
+
+    ctx.reply(`📊 Level: ${u.level}\n✨ XP: ${u.xp}`)
+})
+const lastDaily = {}
+
+bot.command("daily", async (ctx)=>{
+    const id = ctx.from.id
+    const now = Date.now()
+
+    if(lastDaily[id] && now - lastDaily[id] < 24*60*60*1000){
+        return ctx.reply("⏳ Already claimed daily reward")
+    }
+
+    try {
+        await axios.post("http://localhost:3000/mine",{id})
+
+        lastDaily[id] = now
+
+        ctx.reply("🎁 Daily reward claimed +10 GTS")
+    } catch(e){
+        ctx.reply("❌ Error")
+    }
+})
+bot.command("inventory", async (ctx)=>{
+    const id = ctx.from.id
+
+    const res = await axios.post("http://localhost:3000/user",{id})
+    const u = res.data
+
+    ctx.reply(`🎒 Inventory:\n${u.inventory.join(", ") || "Empty"}`)
+})
+bot.command("balance", async (ctx)=>{
+    const id = ctx.from.id
+
+    try {
+        const res = await axios.post("http://localhost:3000/user",{id})
+        const u = res.data
+
+        ctx.reply(`💰 Balance: ${u.balance} GTS`)
+    } catch(e){
+        ctx.reply("❌ Error")
+    }
+})
+
+require("dotenv").config()
+const { Telegraf } = require("telegraf")
+const axios = require("axios")
+
+const bot = new Telegraf(process.env.BOT_TOKEN)
+
+// START
+bot.start((ctx)=>{
+    ctx.reply("🌍 GTS WEB3 PRO",{
+        reply_markup:{
+            inline_keyboard:[[
+                {text:"🎮 PLAY", web_app:{url:process.env.DOMAIN}}
+            ]]
+        }
+    })
+})
+
+// ADMIN
+bot.command("admin",(ctx)=>{
+    if(ctx.from.id != process.env.ADMIN_ID){
+        return ctx.reply("❌ NO ACCESS")
+    }
+
+    ctx.reply("🛡 ADMIN PANEL ACTIVE")
+})
+
+// SHOP
+bot.command("shop",(ctx)=>{
+    ctx.reply(`
+🏪 GTS SHOP
+
+1️⃣ sword - 50 GTS
+2️⃣ shield - 80 GTS
+3️⃣ vip - 200 GTS
+
+Use:
+/buy sword
+/buy shield
+/buy vip
+`)
+})
+
+// BUY
+bot.command("buy", async (ctx)=>{
+    const id = ctx.from.id
+    const item = ctx.message.text.split(" ")[1]
+
+    if(!item){
+        return ctx.reply("❌ Use /buy sword")
+    }
+
+    let price = 0
+
+    if(item === "sword") price = 50
+    else if(item === "shield") price = 80
+    else if(item === "vip") price = 200
+    else return ctx.reply("❌ Item not found")
+
+    try {
+        const res = await axios.post("http://localhost:3000/buy",{
+            id,
+            item,
+            price
+        })
+
+        if(res.data.error){
+            return ctx.reply("❌ Not enough balance")
+        }
+
+        ctx.reply(`✅ You bought ${item}`)
+    } catch(e){
+        ctx.reply("❌ Server error")
+    }
+})
+bot.launch()
+console.log("BOT PRO RUNNING")
+
+nano .env
+BOT_TOKEN=8990817489:AAHk4BdAK8aIVswvQ_rdrGst9khdsV9wagcN
+PORT=3000
+DOMAIN=http://localhost:3000
+ADMIN_ID=5139523628
+nano db.json
+{
+  "users": {}
+}
