@@ -57,6 +57,13 @@ button{
     <button onclick="mine()">⛏ Mine</button>
 </div>
 
+
+const PORT = process.env.PORT || 3000
+
+app.listen(PORT, () => {
+    console.log("SERVER RUNNING ON PORT " + PORT)
+})
+
 <script>
 const id = 123; // لاحقاً رح نربطه مع Telegram ID
 
