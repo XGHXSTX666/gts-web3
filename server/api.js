@@ -1,12 +1,27 @@
 require("dotenv").config()
 
 const express = require("express")
+
 const { getUser, updateUser, getDB } = require("../db/db")
 const { rateLimit } = require("../security/guard")
 
 const app = express()
 
 app.use(express.json())
+
+app.get("/", (req,res)=>{
+    res.send(`
+        <html>
+        <head>
+            <title>GTS WEB3</title>
+        </head>
+        <body style="background:#111;color:white;text-align:center;font-family:sans-serif;">
+            <h1>🌍 GTS WEB3 GAME</h1>
+            <p>Server Online ✅</p>
+        </body>
+        </html>
+    `)
+})
 
 // USER
 app.post("/user",(req,res)=>{
