@@ -11,46 +11,94 @@ app.use(express.json())
 
 app.get("/", (req,res)=>{
     res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>GTS WEB3</title>
-        <style>
-            body {
-                background:#0f0f0f;
-                color:white;
-                font-family:sans-serif;
-                text-align:center;
-                padding-top:80px;
-            }
-            .btn {
-                padding:15px 25px;
-                background:#00ff88;
-                border:none;
-                border-radius:10px;
-                color:black;
-                font-weight:bold;
-                cursor:pointer;
-            }
-        </style>
-    </head>
-    <body>
-        <h1>🌍 GTS WEB3 GAME</h1>
-        <p>Server Online ✅</p>
+<!DOCTYPE html>
+<html>
+<head>
+<title>GTS GAME</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{
+    margin:0;
+    background:#0d0d0d;
+    color:white;
+    font-family:sans-serif;
+    text-align:center;
+}
 
-        <button class="btn" onclick="alert('Game loading...')">
-            🎮 Play
-        </button>
-    </body>
-    </html>
+.card{
+    margin-top:60px;
+}
+
+button{
+    padding:15px 30px;
+    font-size:18px;
+    border:0;
+    border-radius:12px;
+    background:#00ff88;
+    cursor:pointer;
+}
+
+.box{
+    margin:10px;
+    font-size:18px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+    <h1>🌍 GTS WEB3 GAME</h1>
+
+    <div class="box" id="balance">Balance: ...</div>
+    <div class="box" id="xp">XP: ...</div>
+    <div class="box" id="level">Level: ...</div>
+
+    <button onclick="mine()">⛏ Mine</button>
+</div>
+
+<script>
+const id = 123; // لاحقاً رح نربطه مع Telegram ID
+
+async function load(){
+    const res = await fetch("/user", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({id})
+    });
+
+    const data = await res.json();
+
+    document.getElementById("balance").innerText = "Balance: " + data.balance;
+    document.getElementById("xp").innerText = "XP: " + data.xp;
+    document.getElementById("level").innerText = "Level: " + data.level;
+}
+
+async function mine(){
+    await fetch("/mine", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({id})
+    });
+
+    load();
+}
+
+load();
+</script>
+
+</body>
+</html>
     `)
 })
 
 // USER
-app.post("/user",(req,res)=>{
-    const { id } = req.body
+app.post("/user", (req,res)=>{
+    const {id} = req.body
 
-    res.json(getUser(id))
+    let user = getUser(id)
+
+    res.json(user)
 })
 
 // MINE
@@ -121,6 +169,6 @@ app.get("/leaderboard",(req,res)=>{
     res.json(top)
 })
 
-app.listen(process.env.PORT,()=>{
+app.listen(process.env.PORT || 3000,()=>{
     console.log("🔥 GTS PRO API RUNNING")
 })

@@ -1,100 +1,66 @@
 require("dotenv").config()
 
 const { Telegraf } = require("telegraf")
-const axios = require("axios")
 
-const bot = new Telegraf(process.env.BOT_TOKEN)
+const bot = new Telegraf(process.env.BOT_TOKEN, {
+    handlerTimeout: 9000
+})
 
-// START
-bot.start((ctx)=>{
-    ctx.reply("🌍 GTS WEB3 PRO",{
-        reply_markup:{
-            inline_keyboard:[[
-                {
-                    text:"🎮 PLAY",
-                    web_app:{
-                        url:process.env.DOMAIN
+// ⚡ START (سريع جداً بدون تعليق)
+bot.start(async (ctx)=>{
+    await ctx.reply("🌍 BOT ONLINE ⚡")
+
+    setImmediate(() => {
+        ctx.reply("🎮 PLAY", {
+            reply_markup: {
+                inline_keyboard: [[
+                    {
+                        text: "PLAY",
+                        web_app: { url: process.env.DOMAIN }
                     }
-                }
-            ]]
-        }
+                ]]
+            }
+        })
     })
 })
 
-// ADMIN
-bot.command("admin",(ctx)=>{
-    if(ctx.from.id != process.env.ADMIN_ID){
-        return ctx.reply("❌ NO ACCESS")
-    }
+// 🏪 SHOP (بسيط وسريع)
+bot.command("shop", (ctx) => {
+    ctx.reply(
+`🏪 GTS SHOP
 
-    ctx.reply("🛡 ADMIN PANEL ACTIVE")
-})
+🗡 Sword - 50 GTS
+🛡 Shield - 80 GTS
+💎 VIP - 200 GTS
 
-// SHOP
-bot.command("shop",(ctx)=>{
-    ctx.reply(`
-🏪 GTS SHOP
-
-1️⃣ sword - 50 GTS
-2️⃣ shield - 80 GTS
-3️⃣ vip - 200 GTS
-
-Use:
 /buy sword
 /buy shield
-/buy vip
-`)
+/buy vip`
+    )
 })
 
-// BUY
-bot.command("buy", async (ctx)=>{
-    const id = ctx.from.id
-
+// 💰 BUY (بدون API خارجي حتى ما يعلق)
+bot.command("buy", (ctx) => {
     const item = ctx.message.text.split(" ")[1]
 
-    if(!item){
-        return ctx.reply("❌ Use /buy sword")
-    }
+    if (!item) return ctx.reply("❌ Use /buy sword")
 
     let price = 0
 
-    if(item === "sword") price = 50
-    else if(item === "shield") price = 80
-    else if(item === "vip") price = 200
+    if (item === "sword") price = 50
+    else if (item === "shield") price = 80
+    else if (item === "vip") price = 200
     else return ctx.reply("❌ Item not found")
 
-    try{
-        const res = await axios.post("http://localhost:3000/buy",{
-            id,
-            item,
-            price
-        })
-
-        if(res.data.error){
-            return ctx.reply("❌ Not enough balance")
-        }
-
-        ctx.reply(`✅ You bought ${item}`)
-    }
-    catch(e){
-        ctx.reply("❌ Server error")
-    }
+    ctx.reply(`✅ You bought ${item} for ${price} GTS`)
 })
 
-// BALANCE
-bot.command("balance", async (ctx)=>{
-    const id = ctx.from.id
-
-    try{
-        const res = await axios.post("http://localhost:3000/user",{id})
-
-        ctx.reply(`💰 Balance: ${res.data.balance} GTS`)
-    }
-    catch(e){
-        ctx.reply("❌ Error")
-    }
+// 🧪 TEST (للتأكد السرعة)
+bot.command("ping", (ctx) => {
+    ctx.reply("⚡ PONG FAST")
 })
 
+// ⚡ تشغيل فوري
 bot.launch()
 
-console.log("BOT PRO RUNNING")
+console.log("🚀 GTS BOT RUNNING FAST")
